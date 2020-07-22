@@ -199,12 +199,24 @@ ggplot(topics,
 
 ## Exercise 1
 # Use regex to extract money values from the email body content
-
+str_extract_all(content(email), '\\$\\S+\\b')
 
 ## Exercise 2
 # Try plotting a histogram of the number of time a word appears
+ggplot(words, aes(x = total)) +
+  geom_histogram(binwidth = 1)
+words_trim <- filter(words, total < 250)
 
+ggplot(words_trim, aes(x = total)) +
+  geom_histogram(binwidth = 1)  
 
 ## Exercise 3
 # What terms are associated with the word pipeline (piplin)
 # how might you visualize this?
+word_assoc <- findAssocs(dtm_trimmed, 'pipelin', 0.6)
+
+word_assoc <- data.frame(word = names(word_assoc[[1]]),
+                         assoc = word_assoc,
+                         row.names = NULL)  
+ggplot(word_assoc, aes(label = word, size = pipelin)) +
+  geom_text_wordcloud_area()
