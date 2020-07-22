@@ -1,61 +1,83 @@
 ## RegEx
 
-library(...)
+library(stringr)
 
-enron <- ...(DirSource("data/enron"))
+str_extract_all(
+  'Email info@sesync.org or tweet @SESYNC for details!',
+  '\\b\\S+@\\S+\\b')
 
-library(...)
+library(NLP)
+library(tm)
 
-match <- str_match(..., '^From: (.*)')
+enron <- VCorpus(DirSource("data/enron"))
+email <- enron[[1]]
 
+# meta(email)
+#content(email)
 
-txt <- ...
-str_match(txt, '...')
+match <- str_match(content(email), '^From: (.*)')
+head(match)
+
 
 ## Data Extraction
 
-enron <- tm_map(enron, ... {
+enron <- tm_map(enron, function(email) {
   body <- content(email)
   match <- str_match(body, '^From: (.*)')
   match <- na.omit(match)
-  ...(email, 'author') <- match[[1, 2]]
+  meta(email, 'author') <- match[[1, 2]]
   return(email)
 })
 
-## Relational Data Exrtraction
+# in console
+# email <- enron[[1]]
+# meta(email)
+
+match <- str_match(content(email), '^From: (.*)')
+head(match)
+
+## Relational Data Extraction
 
 get_to <- function(email) {
   body <- content(email)
   match <- str_detect(body, '^To:')
   if (any(match)) {
-    ... <- which(match)[[1]]
+    to_start <- which(match)[[1]]
     match <- str_detect(body, '^Subject:')
-    ... <- which(match)[[1]] - 1
-    to <- paste(body[...:...], collapse = '')
-    to <- str_extract_all(to, ...)
+    to_end <- which(match)[[1]] - 1
+    to <- paste(body[to_start:to_end], collapse = '')
+    to <- str_extract_all(to, '\\b\\S+@\\S+\\b')
     return(unlist(to))
   } else {
     return(NA)
   }
 }
 
-edges <- ...(enron, FUN = function(email) {
+# Console
+# get_to(email)
+
+edges <- lapply(enron, FUN = function(email) {
   from <- meta(email, 'author')
   to <- get_to(email)
   return(cbind(from, to))
 })
-edges <- do.call(..., edges)
+edges <- do.call(rbind, edges)
 edges <- na.omit(edges)
 attr(edges, 'na.action') <- NULL
 
-library(...)
+# Console
+# dim(edges)
 
-g <- ...
-plot(...)
+library(network)
+
+g <- network(edges)
+plot(g)
+
+# fitting models on networks (eg. ERGMs) active research area
 
 ## Text Mining
 
-enron <- ...(enron, function(email) {
+enron <- tm_map(enron, function(email) {
   body <- content(email)
   match <- str_detect(body, '^X-FileName:')
   begin <- which(match)[[1]] + 1
@@ -70,18 +92,27 @@ enron <- ...(enron, function(email) {
 
 library(magrittr)
 
+# using predefined functions
 enron_words <- enron %>%
-  tm_map(...) %>%
-  tm_map(...) %>%
-  tm_map(...)
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(stripWhitespace)
 
-... <- function(body) {
+
+# Console
+# email <- enron_words[[2]]
+# content(email)
+
+# Function must be wrapped in content_transformer
+# if designed to accept & return strings rather than
+# plain texts
+
+remove_link <- function(body) {
   match <- str_detect(body, '(http|www|mailto)')
   body[!match]
 }
-
 enron_words <- enron_words %>%
-  tm_map(...)
+  tm_map(content_transformer(remove_link))  
 
 ## Stopwords and Stems
 
@@ -97,18 +128,21 @@ dtm <- DocumentTermMatrix(enron_words)
 
 library(tidytext)
 library(dplyr)
-dtt <- ...(dtm)
+
+dtt <- tidy(dtm)
 words <- dtt %>%
-  group_by(...) %>%
+  group_by(term) %>%
   summarise(
     n = n(),
     total = sum(count)) %>%
   mutate(nchar = nchar(term))
 
 library(ggplot2)
-ggplot(..., aes(...)) +
+ggplot(words, aes(x = nchar)) +
   geom_histogram(binwidth = 1)
 
+
+# remove words with too many characters
 dtt_trimmed <- words %>%
   filter(
     nchar < 16,
@@ -118,31 +152,59 @@ dtt_trimmed <- words %>%
   inner_join(dtt)
 
 dtm_trimmed <- dtt_trimmed %>%
-  ...(document, term, count)
+  cast_dtm(document, term, count)
 
 ## Term Correlations
 
-word_assoc <- ...(dtm_trimmed, ..., 0.6)
+word_assoc <- findAssocs(dtm_trimmed, 'ken', 0.6)
 word_assoc <- data.frame(
   word = names(word_assoc[[1]]),
   assoc = word_assoc,
   row.names = NULL)
 
+library(ggwordcloud)
+
+ggplot(word_assoc,
+       aes(label = word, size = ken)) +
+  geom_text_wordcloud_area()
+
+
 ## Latent Dirichlet allocation
+# an algorithm to dimensionallity reduction techniques
+# such as PCA, requires a number of topics in corpus beforehand
+# while PCA allows to choose a # of principle components based
+# of their loadings
 
 library(topicmodels)
 
 seed = 12345
-fit = ...(dtm_trimmed, k = 5, control = list(seed=seed))
-... <- as.data.frame(
+fit = LDA(dtm_trimmed, k = 5, control = list(seed=seed))
+# assigning "weights" gives indication of how likely it is
+# to find each topic in a document, you have engineered some
+# numerical features associated with each document that might
+# further help with classification or visualization
+
+email_topics <- as.data.frame(
   posterior(fit, dtm_trimmed)$topics)
 
 library(ggwordcloud)
 
-topics <- ...(fit) %>%
+topics <- tidy(fit) %>%
   filter(beta > 0.004)
 
 ggplot(topics,
-  aes(size = ..., label = ...)) +
+  aes(size = beta, label = term)) +
   geom_text_wordcloud_area(rm_outside = TRUE) +
   facet_wrap(vars(topic))
+
+## Exercise 1
+# Use regex to extract money values from the email body content
+
+
+## Exercise 2
+# Try plotting a histogram of the number of time a word appears
+
+
+## Exercise 3
+# What terms are associated with the word pipeline (piplin)
+# how might you visualize this?
