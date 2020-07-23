@@ -3,11 +3,37 @@
 # using flood mapping analysis from hurricane Rita
 ###
 
+# --- Inputs---
+# FEMA flood maps
+# MOD09 reflectance image after Hurricane Rita
+# Vector polygons of ground truth (for training and testing classifiers)
+# NLCD 2006 land cover aggregated at 1km
+
+# --- Outputs ---
+# classified map using rpart classifier
+# classified map using svm classifier
+# confusion matrices and overall accuracies by classifiers
+
+# --- Tools/Functions ---
+# raster::brick
+# raster::writeRaster
+# sf::st_read
+# raster::subset
+# raster::extract
+# raster::predict
+# raster algebra: “*”,” /”,”+”,”-“
+# rasterVis::levelplot
+# rasterVis::histogram
+
+
+
 ### Load packages                                                      
 library(raster) # raster functionalities
 library(sf) # spatial objects classes
 library(rpart) # regression and classification trees 
 library(e1071) # support vector machine
+library(lattice)
+library(latticeExtra)
 library(rasterVis) # raster visualization operations
 library(caret) # complex regression and classification models
 
