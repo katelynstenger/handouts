@@ -1,7 +1,8 @@
 # examples with shape and raster files using a partial protected areas shape file and raster for mean annual temperature in the US
 
 library(sf)
-prot_areas <- st_read('usa_protected_areas_shp/usa_protected_areas.shp')
+setwd('/home/katelyn')
+prot_areas <- st_read('~/sample_data/usa_protected_areas_shp/usa_protected_areas.shp')
 
 library(raster)
 mean_temp11 <- raster('mean_ann_temp_shp/bio1_11.bil')
